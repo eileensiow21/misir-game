@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memory Flip Cards</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&family=Fraunces:wght@600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5efe6;
+      --ink: #1f1d1b;
+      --accent: #1d6f6a;
+      --accent-2: #f26b4f;
+      --card: #fff7ee;
+      --card-edge: #e3d3c4;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(1200px 700px at 10% 10%, #fff3d8 0%, transparent 60%),
+        radial-gradient(900px 500px at 90% 20%, #e8f6f2 0%, transparent 60%),
+        var(--bg);
+      color: var(--ink);
+      font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+    }
+
+    .frame {
+      width: min(90vw, 980px);
+      height: 100vh;
+      padding: 26px 26px 22px;
+      border: 2px solid #1f1d1b;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #fffaf2 0%, #fbf2e8 100%);
+      box-shadow: 0 24px 60px rgba(31, 29, 27, 0.18);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow: hidden;
+    }
+
+    .header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 0;
+    }
+
+    .title {
+      font-family: "Fraunces", "Times New Roman", serif;
+      font-size: 28px;
+      letter-spacing: 0.5px;
+    }
+
+    .meta {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #1f1d1b;
+      background: #fff;
+    }
+
+    .board {
+      display: block;
+      padding: 10px;
+      border-radius: 14px;
+      border: 2px dashed #1f1d1b;
+      background: repeating-linear-gradient(
+        45deg,
+        rgba(31, 29, 27, 0.04),
+        rgba(31, 29, 27, 0.04) 8px,
+        transparent 8px,
+        transparent 16px
+      );
+      width: min(75vh, 100%);
+      aspect-ratio: 1 / 1;
+      margin: 0 auto;
+      flex: 1;
+      position: relative;
+    }
+
+    #cardGrid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: repeat(4, minmax(0, 1fr));
+      grid-auto-rows: 1fr;
+      gap: 10px;
+      width: 100%;
+      height: 100%;
+    }
+
+    .card {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+      perspective: 800px;
+      animation: rise 400ms ease both;
+    }
+
+    .card:nth-child(odd) {
+      animation-delay: 60ms;
+    }
+
+    .card-inner {
+      position: absolute;
+      inset: 0;
+      transform-style: preserve-3d;
+      transition: transform 320ms ease;
+    }
+
+    .card.is-flipped .card-inner,
+    .card.is-matched .card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .face {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      border: 2px solid var(--card-edge);
+      backface-visibility: hidden;
+      font-weight: 600;
+      font-size: 18px;
+      overflow: hidden;
+    }
+
+    .face.back {
+      background: linear-gradient(135deg, #fff, #f5efe6);
+      box-shadow: inset 0 0 0 2px #1f1d1b;
+      color: var(--ink);
+    }
+
+    .face.front {
+      transform: rotateY(180deg);
+      background: #fff;
+      box-shadow: inset 0 0 0 2px #1f1d1b;
+      color: #1f1d1b;
+      font-size: 20px;
+      letter-spacing: 1px;
+    }
+
+    .card-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 8px;
+      box-shadow: none;
+    }
+
+    .card.is-matched {
+      pointer-events: none;
+      animation: pop 220ms ease;
+    }
+
+    .card.is-removed {
+      opacity: 0;
+      transform: scale(0.8);
+      transition: opacity 240ms ease, transform 240ms ease;
+    }
+
+    #confetti-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+      display: block;
+    }
+
+    .timer {
+      margin-top: 0;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 2px solid #1f1d1b;
+      background: #fff;
+      font-size: 16px;
+      letter-spacing: 0.5px;
+    }
+
+    .timer strong {
+      font-family: "Fraunces", "Times New Roman", serif;
+      font-size: 20px;
+    }
+
+    .best-time {
+      margin-top: 6px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #1f1d1b;
+      background: #fff8ef;
+    }
+
+    .best-time.is-new {
+      background: #1d6f6a;
+      color: #fff;
+      animation: bestGlow 800ms ease;
+    }
+
+    .progress {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .bar {
+      width: 220px;
+      height: 8px;
+      border-radius: 999px;
+      background: #f2e4d6;
+      overflow: hidden;
+      border: 1px solid #1f1d1b;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width 200ms ease;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .status {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .start {
+      border: 2px solid #1f1d1b;
+      background: linear-gradient(135deg, #1d6f6a, #1f1d1b);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: transform 200ms ease, box-shadow 200ms ease;
+      box-shadow: 0 12px 24px rgba(31, 29, 27, 0.15);
+    }
+
+    .start:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+      box-shadow: none;
+      background: #cfc3b5;
+      color: #1f1d1b;
+    }
+
+    .start:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(31, 29, 27, 0.2);
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 247, 238, 0.92);
+      border-radius: 12px;
+      border: 2px dashed #1f1d1b;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms ease;
+      z-index: 3;
+    }
+
+    .overlay.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .overlay-card {
+      padding: 18px 22px;
+      border-radius: 14px;
+      border: 2px solid #1f1d1b;
+      background: #fff;
+      box-shadow: 0 20px 40px rgba(31, 29, 27, 0.15);
+      display: grid;
+      gap: 14px;
+    }
+
+    .overlay-title {
+      font-family: "Fraunces", "Times New Roman", serif;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .leaderboard {
+      display: grid;
+      gap: 8px;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    .leaderboard-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .leaderboard-list {
+      display: grid;
+      gap: 6px;
+    }
+
+    .leaderboard-item {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px dashed #d3c4b4;
+      padding-bottom: 4px;
+    }
+
+    .leaderboard-item span {
+      font-weight: 600;
+    }
+
+    .best-note {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent);
+    }
+
+    .restart {
+      border: 2px solid #1f1d1b;
+      background: #fff;
+      color: #1f1d1b;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+    }
+
+    .name-overlay {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(31, 29, 27, 0.5);
+      z-index: 6;
+    }
+
+    .name-card {
+      padding: 20px 24px;
+      border-radius: 16px;
+      border: 2px solid #1f1d1b;
+      background: #fffaf2;
+      box-shadow: 0 20px 40px rgba(31, 29, 27, 0.2);
+      display: grid;
+      gap: 12px;
+      min-width: min(90vw, 340px);
+    }
+
+    .name-card label {
+      font-size: 14px;
+    }
+
+    .name-card input {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 2px solid #1f1d1b;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .name-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pop {
+      0% { transform: scale(1); }
+      60% { transform: scale(1.06); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes bestGlow {
+      0% { box-shadow: 0 0 0 rgba(29, 111, 106, 0.4); }
+      100% { box-shadow: 0 0 18px rgba(29, 111, 106, 0.4); }
+    }
+
+    @media (max-height: 820px) {
+      .frame {
+        height: 100vh;
+      }
+
+      .title {
+        font-size: 24px;
+      }
+
+      .timer {
+        padding: 10px 14px;
+        font-size: 14px;
+      }
+
+      .timer strong {
+        font-size: 18px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      body {
+        place-items: stretch;
+      }
+
+      .frame {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+        padding: 16px;
+      }
+
+      .header {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+      }
+
+      .board {
+        width: 100%;
+        max-width: 100%;
+        aspect-ratio: unset;
+        flex: 1;
+        padding: 4px;
+        gap: 4px;
+      }
+
+      #cardGrid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 4px;
+        width: 100%;
+      }
+
+      .overlay-card {
+        width: min(92vw, 360px);
+      }
+
+      .timer {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .controls {
+        justify-content: space-between;
+      }
+
+      .bar {
+        width: 140px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="confetti-canvas" aria-hidden="true"></canvas>
+  <div class="name-overlay" id="nameOverlay">
+    <div class="name-card">
+      <div class="overlay-title">Please enter your name to keep scores</div>
+      <label for="playerName">Name</label>
+      <input id="playerName" type="text" autocomplete="name" maxlength="20" />
+      <div class="name-actions">
+        <button class="start" id="saveName" type="button">Start</button>
+      </div>
+    </div>
+  </div>
+  <main class="frame">
+    <div class="header">
+      <div class="title">The Misir Memory Game</div>
+      <div class="meta">
+        <span class="pill">4 x 4</span>
+        <span class="pill">16 cards</span>
+      </div>
+    </div>
+
+    <section class="board" id="board" aria-label="Memory game board">
+      <div id="cardGrid"></div>
+      <div class="overlay" id="overlay" aria-live="polite">
+        <div class="overlay-card">
+          <div class="overlay-title">
+            <span id="overlayText">You matched in 0 seconds</span>
+            <button class="restart" id="restartButton" type="button">Play again</button>
+          </div>
+          <div class="best-note" id="bestNote" hidden>New personal best!</div>
+          <div class="leaderboard">
+            <div class="leaderboard-title">Leaderboard</div>
+            <div class="leaderboard-list" id="leaderboardList"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="timer">
+      <div>
+        Timer: <strong id="timer">00:00</strong>
+        <div class="best-time" id="bestTime">Best: --:--</div>
+        <div class="progress">
+          <span>Matched</span>
+          <div class="bar"><span id="progress"></span></div>
+          <span id="matched">0 / 8</span>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="status" id="status">Ready</div>
+        <button class="start" id="startButton" type="button">Start</button>
+      </div>
+    </footer>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"></script>
+  <script>
+    const symbols = [
+      { id: "card-1", label: "Card 1", src: "images/card-1.png" },
+      { id: "card-2", label: "Card 2", src: "images/card-2.png" },
+      { id: "card-3", label: "Card 3", src: "images/card-3.png" },
+      { id: "card-4", label: "Card 4", src: "images/card-4.png" },
+      { id: "card-5", label: "Card 5", src: "images/card-5.png" },
+      { id: "card-6", label: "Card 6", src: "images/card-6.png" },
+      { id: "card-7", label: "Card 7", src: "images/card-7.png" },
+      { id: "card-1b", label: "Card 1", src: "images/card-1.png" }
+    ];
+
+    const totalCards = 16;
+    const pairCount = Math.floor(totalCards / 2);
+    const pairs = symbols.slice(0, pairCount);
+    let deck = [];
+
+    const board = document.getElementById("board");
+    const cardGrid = document.getElementById("cardGrid");
+    const timerEl = document.getElementById("timer");
+    const matchedEl = document.getElementById("matched");
+    const progressEl = document.getElementById("progress");
+    const startButton = document.getElementById("startButton");
+    const statusEl = document.getElementById("status");
+    const overlayEl = document.getElementById("overlay");
+    const overlayTextEl = document.getElementById("overlayText");
+    const restartButton = document.getElementById("restartButton");
+    const bestTimeEl = document.getElementById("bestTime");
+    const bestNoteEl = document.getElementById("bestNote");
+    const leaderboardList = document.getElementById("leaderboardList");
+    const nameOverlay = document.getElementById("nameOverlay");
+    const playerNameInput = document.getElementById("playerName");
+    const saveNameButton = document.getElementById("saveName");
+    const confettiCanvas = document.getElementById("confetti-canvas");
+    const confettiBurst = window.confetti
+      ? window.confetti.create(confettiCanvas, { resize: true, useWorker: true })
+      : null;
+
+    const sounds = {
+      flip: new Audio("https://cdn.jsdelivr.net/npm/sound-effect-manager@1.0.1/taps.mp3"),
+      confetti: new Audio("sounds/confetti.mp3"),
+      win: new Audio("https://cdn.jsdelivr.net/npm/sound-effect-manager@1.0.1/rocket.wav")
+    };
+
+    Object.values(sounds).forEach((audio) => {
+      audio.preload = "auto";
+      audio.volume = 0.6;
+    });
+
+    function playSound(audio) {
+      if (!audio) {
+        return;
+      }
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    }
+
+    function syncConfettiCanvas() {
+      confettiCanvas.width = window.innerWidth;
+      confettiCanvas.height = window.innerHeight;
+    }
+
+    let flipped = [];
+    let matched = 0;
+    let startTime = null;
+    let timerId = null;
+    let gameActive = false;
+    let playerName = "";
+
+    const NAME_KEY = "memory_player_name";
+
+    function formatSeconds(seconds) {
+      const minutes = String(Math.floor(seconds / 60)).padStart(2, "0");
+      const secs = String(seconds % 60).padStart(2, "0");
+      return `${minutes}:${secs}`;
+    }
+
+    async function fetchScores({ exclude, name } = {}) {
+      const params = new URLSearchParams();
+      params.set("limit", "4");
+      if (exclude) {
+        params.set("exclude", exclude);
+      }
+      if (name) {
+        params.set("name", name);
+      }
+      const response = await fetch(`/api/scores?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch scores.");
+      }
+      return response.json();
+    }
+
+    async function postScore(name, time) {
+      const response = await fetch("/api/scores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, time })
+      });
+      if (!response.ok) {
+        throw new Error("Failed to save score.");
+      }
+      return response.json();
+    }
+
+    function updateBestTimeBadge(bestSeconds, isNew = false) {
+      if (bestSeconds === null || bestSeconds === undefined) {
+        bestTimeEl.textContent = "Best: --:--";
+        bestTimeEl.classList.remove("is-new");
+        return;
+      }
+      bestTimeEl.textContent = `Best: ${formatSeconds(bestSeconds)}`;
+      bestTimeEl.classList.toggle("is-new", isNew);
+      if (isNew) {
+        setTimeout(() => {
+          bestTimeEl.classList.remove("is-new");
+        }, 1200);
+      }
+    }
+
+    function renderLeaderboard(list) {
+      leaderboardList.innerHTML = "";
+      if (!list || list.length === 0) {
+        leaderboardList.innerHTML = "<div>No other scores yet.</div>";
+        return;
+      }
+      list.forEach((entry) => {
+        const row = document.createElement("div");
+        row.className = "leaderboard-item";
+        row.innerHTML = `<span>${entry.name}</span><span>${entry.time}s</span>`;
+        leaderboardList.appendChild(row);
+      });
+    }
+
+    function updateTimer() {
+      if (!startTime) {
+        timerEl.textContent = "00:00";
+        return;
+      }
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const minutes = String(Math.floor(elapsed / 60)).padStart(2, "0");
+      const seconds = String(elapsed % 60).padStart(2, "0");
+      timerEl.textContent = `${minutes}:${seconds}`;
+    }
+
+    function updateProgress() {
+      matchedEl.textContent = `${matched} / ${pairCount}`;
+      progressEl.style.width = `${(matched / pairCount) * 100}%`;
+    }
+
+    function render() {
+      cardGrid.innerHTML = "";
+      deck = [...pairs, ...pairs]
+        .sort(() => Math.random() - 0.5)
+        .map((symbol, index) => ({ id: index, symbol }));
+      deck.forEach((cardData) => {
+        const card = document.createElement("button");
+        card.className = "card";
+        card.setAttribute("type", "button");
+        card.setAttribute("aria-label", "Memory card");
+        card.dataset.symbol = cardData.symbol.src;
+
+        card.innerHTML = `
+          <div class="card-inner">
+            <div class="face back">MEM</div>
+            <div class="face front" aria-label="${cardData.symbol.label}">
+              <img class="card-image" src="${cardData.symbol.src}" alt="${cardData.symbol.label}">
+            </div>
+          </div>
+        `;
+
+        cardGrid.appendChild(card);
+      });
+    }
+
+    function handleFlip(card) {
+      if (card.classList.contains("is-flipped") || card.classList.contains("is-matched")) {
+        return;
+      }
+
+      if (flipped.length === 2) {
+        return;
+      }
+
+      card.classList.add("is-flipped");
+      flipped.push(card);
+      playSound(sounds.flip);
+
+      if (flipped.length === 2) {
+        const [first, second] = flipped;
+        if (first.dataset.symbol === second.dataset.symbol) {
+          first.classList.add("is-matched");
+          second.classList.add("is-matched");
+          fireMatchConfetti(first);
+          fireMatchConfetti(second);
+          playSound(sounds.confetti);
+          matched += 1;
+          flipped = [];
+          updateProgress();
+          setTimeout(() => {
+            first.classList.add("is-removed");
+            second.classList.add("is-removed");
+          }, 420);
+          if (matched === pairCount) {
+            gameActive = false;
+            statusEl.textContent = "Completed";
+            startButton.disabled = false;
+            clearInterval(timerId);
+            const totalSeconds = Math.floor((Date.now() - startTime) / 1000);
+            setTimeout(() => {
+              handleWin(totalSeconds);
+            }, 520);
+          }
+          return;
+        }
+
+        setTimeout(() => {
+          first.classList.remove("is-flipped");
+          second.classList.remove("is-flipped");
+          flipped = [];
+        }, 500);
+      }
+    }
+
+    function resetGame() {
+      flipped = [];
+      matched = 0;
+      startTime = null;
+      clearInterval(timerId);
+      timerId = null;
+      gameActive = false;
+      statusEl.textContent = "Ready";
+      startButton.disabled = false;
+      overlayEl.classList.remove("is-visible");
+      bestNoteEl.hidden = true;
+      if (confettiBurst && typeof confettiBurst.reset === "function") {
+        confettiBurst.reset();
+      }
+      render();
+      updateProgress();
+      updateTimer();
+    }
+
+    function requireName() {
+      const saved = localStorage.getItem(NAME_KEY);
+      if (saved) {
+        playerNameInput.value = saved;
+      }
+      nameOverlay.style.display = "grid";
+      playerNameInput.focus();
+    }
+
+    async function saveName() {
+      const value = playerNameInput.value.trim();
+      if (!value) {
+        playerNameInput.focus();
+        return false;
+      }
+      playerName = value;
+      localStorage.setItem(NAME_KEY, value);
+      nameOverlay.style.display = "none";
+      await refreshScores();
+      return true;
+    }
+
+    function startGame() {
+      if (!playerName) {
+        requireName();
+        return;
+      }
+      if (gameActive) {
+        return;
+      }
+      resetGame();
+      gameActive = true;
+      statusEl.textContent = "Playing";
+      startButton.disabled = true;
+      startTime = Date.now();
+      updateTimer();
+      timerId = setInterval(updateTimer, 1000);
+    }
+
+    board.addEventListener("click", (event) => {
+      if (!gameActive) {
+        return;
+      }
+      const card = event.target.closest(".card");
+      if (card) {
+        handleFlip(card);
+      }
+    });
+
+    function fireMatchConfetti(card) {
+      if (!confettiBurst) {
+        return;
+      }
+      const rect = card.getBoundingClientRect();
+      const originX = (rect.left + rect.width / 2) / window.innerWidth;
+      const originY = (rect.top + rect.height / 2) / window.innerHeight;
+      const base = {
+        gravity: 0.9,
+        spread: 70,
+        startVelocity: 45,
+        decay: 0.9,
+        ticks: 240,
+        scalar: 1.05,
+        disableForReducedMotion: true
+      };
+
+      confettiBurst({
+        ...base,
+        particleCount: 32,
+        angle: 60,
+        origin: { x: Math.max(0, originX - 0.03), y: originY }
+      });
+
+      confettiBurst({
+        ...base,
+        particleCount: 32,
+        angle: 120,
+        origin: { x: Math.min(1, originX + 0.03), y: originY }
+      });
+
+      setTimeout(() => {
+        confettiBurst({
+          ...base,
+          particleCount: 18,
+          angle: 75,
+          spread: 90,
+          startVelocity: 35,
+          origin: { x: Math.max(0, originX - 0.02), y: originY }
+        });
+        confettiBurst({
+          ...base,
+          particleCount: 18,
+          angle: 105,
+          spread: 90,
+          startVelocity: 35,
+          origin: { x: Math.min(1, originX + 0.02), y: originY }
+        });
+      }, 140);
+    }
+
+    async function refreshScores() {
+      if (!playerName) {
+        updateBestTimeBadge(null);
+        renderLeaderboard([]);
+        return;
+      }
+      try {
+        const data = await fetchScores({ exclude: playerName, name: playerName });
+        updateBestTimeBadge(data.bestTime);
+        renderLeaderboard(data.leaderboard);
+      } catch (error) {
+        updateBestTimeBadge(null);
+        renderLeaderboard([]);
+      }
+    }
+
+    async function handleWin(totalSeconds) {
+      try {
+        const data = await postScore(playerName, totalSeconds);
+        overlayTextEl.textContent = `You matched in ${totalSeconds} seconds`;
+        bestNoteEl.hidden = !data.isNewBest;
+        updateBestTimeBadge(data.bestTime, data.isNewBest);
+        renderLeaderboard(data.leaderboard);
+        overlayEl.classList.add("is-visible");
+        playSound(sounds.win);
+      } catch (error) {
+        overlayTextEl.textContent = `You matched in ${totalSeconds} seconds`;
+        bestNoteEl.hidden = true;
+        overlayEl.classList.add("is-visible");
+      }
+    }
+
+    startButton.addEventListener("click", startGame);
+    restartButton.addEventListener("click", startGame);
+    saveNameButton.addEventListener("click", () => {
+      saveName().then((saved) => {
+        if (saved) {
+          startGame();
+        }
+      });
+    });
+    playerNameInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        saveName().then((saved) => {
+          if (saved) {
+            startGame();
+          }
+        });
+      }
+    });
+
+    window.addEventListener("resize", syncConfettiCanvas);
+
+    requireName();
+    syncConfettiCanvas();
+    resetGame();
+  </script>
+</body>
+</html>
