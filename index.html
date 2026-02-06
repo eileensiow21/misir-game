@@ -686,19 +686,20 @@
       }
     }
 
-    function renderLeaderboard(list) {
-      leaderboardList.innerHTML = "";
-      if (!list || list.length === 0) {
-        leaderboardList.innerHTML = "<div>No other scores yet.</div>";
-        return;
-      }
-      list.forEach((entry) => {
-        const row = document.createElement("div");
-        row.className = "leaderboard-item";
-        row.innerHTML = `<span>${entry.name}</span><span>${entry.time}s</span>`;
-        leaderboardList.appendChild(row);
-      });
-    }
+function renderLeaderboard(list) {
+  leaderboardList.innerHTML = "";
+  if (!list || list.length === 0) {
+    leaderboardList.innerHTML = "<div>No other scores yet.</div>";
+    return;
+  }
+  list.forEach((entry, index) => {
+    const trophy = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "";
+    const row = document.createElement("div");
+    row.className = "leaderboard-item";
+    row.innerHTML = `<span>${trophy} ${entry.name}</span><span>${entry.time}s</span>`;
+    leaderboardList.appendChild(row);
+  });
+}
 
     function updateTimer() {
       if (!startTime) {
